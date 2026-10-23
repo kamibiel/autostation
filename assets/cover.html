@@ -1,0 +1,160 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  @font-face{font-family:"Lucky";src:url(fonts/luckiest-guy-latin-400-normal.woff2) format("woff2")}
+  @font-face{font-family:"Nun";font-weight:900;src:url(fonts/nunito-latin-900-normal.woff2) format("woff2")}
+  html,body{margin:0;background:#000}
+  .wrap{width:1920px;height:1080px;position:relative;overflow:hidden}
+  svg{position:absolute;inset:0}
+  .title{position:absolute;left:96px;top:96px;transform:rotate(-3deg);transform-origin:left top}
+  .t1{font-family:"Lucky";font-size:196px;line-height:.86;letter-spacing:2px;color:#ffe066;
+      -webkit-text-stroke:14px #3b2412;paint-order:stroke fill;
+      text-shadow:0 12px 0 #3b2412,0 26px 40px rgba(0,0,0,.35)}
+  .t1 .b{color:#b7f05a}
+  .sub{margin:34px 0 0 8px;font-family:"Nun";font-weight:900;font-size:44px;color:#fff;
+       -webkit-text-stroke:9px #3b2412;paint-order:stroke fill;text-shadow:0 6px 0 #3b2412}
+  .chips{position:absolute;left:104px;bottom:86px;display:flex;gap:16px}
+  .chip{font-family:"Nun";font-weight:900;font-size:30px;color:#3b2412;background:#ffe066;
+        border:6px solid #3b2412;border-radius:18px;padding:8px 22px;box-shadow:0 7px 0 #3b2412}
+  .tag{position:absolute;right:70px;top:70px;font-family:"Nun";font-weight:900;font-size:28px;color:#fff;
+       background:#3b2412;border-radius:14px;padding:10px 20px;letter-spacing:2px}
+</style></head>
+<body><div class="wrap">
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#7fd3f2"/><stop offset=".6" stop-color="#bfeaf0"/><stop offset="1" stop-color="#f4e7b5"/>
+  </linearGradient>
+  <radialGradient id="sun" cx="1540" cy="170" r="520" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#fffbe0"/><stop offset=".25" stop-color="#fff4b8" stop-opacity=".8"/><stop offset="1" stop-color="#fff4b8" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="gFar" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8cc864"/><stop offset=".5" stop-color="#a9dc78"/><stop offset="1" stop-color="#78b552"/></linearGradient>
+  <linearGradient id="gMid" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4f9a3a"/><stop offset=".45" stop-color="#7cc451"/><stop offset="1" stop-color="#3e8430"/></linearGradient>
+  <linearGradient id="gNear" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2f6e26"/><stop offset=".5" stop-color="#4f9a37"/><stop offset="1" stop-color="#245a1f"/></linearGradient>
+  <linearGradient id="dirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a5a34"/><stop offset="1" stop-color="#5b3820"/></linearGradient>
+  <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e3a65f"/><stop offset="1" stop-color="#b8763a"/></linearGradient>
+  <linearGradient id="cap" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c0392b"/><stop offset=".45" stop-color="#ef5b4a"/><stop offset="1" stop-color="#a52d22"/></linearGradient>
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8d99a3"/><stop offset=".5" stop-color="#e2e8ec"/><stop offset="1" stop-color="#7c8891"/></linearGradient>
+  <radialGradient id="shroom" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#ff9a7a"/><stop offset="1" stop-color="#c8432f"/></radialGradient>
+  <radialGradient id="goo" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffd27a"/><stop offset="1" stop-color="#e08a1e"/></radialGradient>
+  <filter id="blur6"><feGaussianBlur stdDeviation="6"/></filter>
+  <filter id="blur2"><feGaussianBlur stdDeviation="2"/></filter>
+  <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="14" stdDeviation="10" flood-color="#2a1a0c" flood-opacity=".35"/></filter>
+  <g id="mush">
+    <rect x="-10" y="0" width="20" height="26" rx="8" fill="#f7ead2" stroke="#3b2412" stroke-width="4"/>
+    <path d="M-30 4 C-30 -26 30 -26 30 4 Z" fill="url(#shroom)" stroke="#3b2412" stroke-width="5"/>
+    <circle cx="-10" cy="-8" r="5" fill="#ffe4d6"/><circle cx="10" cy="-4" r="4" fill="#ffe4d6"/>
+  </g>
+  <g id="blob"><path d="M0 -22 C16 -22 26 -8 22 8 C18 22 -18 24 -23 6 C-27 -10 -14 -22 0 -22Z" fill="url(#goo)" stroke="#3b2412" stroke-width="5"/><ellipse cx="-7" cy="-8" rx="6" ry="4" fill="#fff3c9"/></g>
+</defs>
+
+<rect width="1920" height="1080" fill="url(#sky)"/>
+<rect width="1920" height="1080" fill="url(#sun)"/>
+
+<!-- far grass forest (blurred) -->
+<g filter="url(#blur6)" opacity=".85">
+  <path d="M700 1080 C720 700 760 380 830 60 C800 380 790 720 800 1080Z" fill="url(#gFar)"/>
+  <path d="M1040 1080 C1050 760 1090 470 1160 180 C1130 470 1120 760 1130 1080Z" fill="url(#gFar)"/>
+  <path d="M1420 1080 C1400 740 1360 430 1290 120 C1390 420 1460 740 1480 1080Z" fill="url(#gFar)"/>
+  <path d="M1780 1080 C1790 780 1830 520 1920 280 L1920 1080Z" fill="url(#gFar)"/>
+  <path d="M560 1080 C540 820 500 560 430 300 C530 560 600 820 620 1080Z" fill="url(#gFar)"/>
+  <circle cx="1240" cy="330" r="70" fill="#f6f1d3" opacity=".7"/>
+</g>
+
+<!-- mid grass -->
+<g>
+  <path d="M900 1080 C930 760 990 500 1090 230 C1040 520 1010 790 1000 1080Z" fill="url(#gMid)"/>
+  <path d="M1600 1080 C1580 790 1530 540 1440 300 C1560 540 1640 800 1680 1080Z" fill="url(#gMid)"/>
+  <path d="M1690 1080 C1720 840 1790 640 1900 470 L1920 520 C1830 680 1780 870 1770 1080Z" fill="url(#gMid)"/>
+  <path d="M960 600 C1000 500 1040 420 1090 230" stroke="#b9ec86" stroke-width="6" fill="none" opacity=".7"/>
+</g>
+
+<!-- ground -->
+<path d="M0 860 C320 830 640 880 980 850 C1300 822 1620 860 1920 838 L1920 1080 L0 1080Z" fill="url(#dirt)"/>
+<path d="M0 905 C400 885 800 930 1200 900 C1500 880 1750 905 1920 890 L1920 1080 L0 1080Z" fill="#4c2e19" opacity=".6"/>
+<g fill="#a8784c" stroke="#3b2412" stroke-width="4">
+  <ellipse cx="640" cy="940" rx="38" ry="20"/><ellipse cx="1180" cy="1000" rx="26" ry="14"/><ellipse cx="1840" cy="960" rx="44" ry="22"/><ellipse cx="310" cy="1010" rx="30" ry="15"/>
+</g>
+
+<!-- CHEST (popsicle-stick crate) left of machine -->
+<g transform="translate(860 640)" filter="url(#shadow)">
+  <rect x="0" y="40" width="300" height="200" rx="14" fill="url(#wood)" stroke="#3b2412" stroke-width="8"/>
+  <g stroke="#3b2412" stroke-width="5" opacity=".55"><line x1="0" y1="105" x2="300" y2="105"/><line x1="0" y1="170" x2="300" y2="170"/></g>
+  <rect x="-12" y="20" width="324" height="40" rx="12" fill="#c98a49" stroke="#3b2412" stroke-width="8"/>
+  <rect x="128" y="110" width="44" height="40" rx="8" fill="#ffd34d" stroke="#3b2412" stroke-width="6"/>
+  <use href="#mush" x="70" y="-6"/><use href="#mush" x="130" y="-14"/><use href="#mush" x="200" y="-4"/>
+</g>
+
+<!-- conveyor rail: chest -> hopper -->
+<g>
+  <path d="M1110 610 C1170 470 1270 400 1365 395" stroke="#3b2412" stroke-width="22" fill="none" stroke-linecap="round"/>
+  <path d="M1110 610 C1170 470 1270 400 1365 395" stroke="#d9a466" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <use href="#mush" x="1150" y="508" transform="rotate(-35 1150 508)"/>
+  <use href="#mush" x="1238" y="430" transform="rotate(-18 1238 430)"/>
+</g>
+
+<!-- MACHINE (original): bottle-cap base, stick frame, gear, hopper -->
+<g transform="translate(1330 380)" filter="url(#shadow)">
+  <!-- legs -->
+  <rect x="40" y="200" width="30" height="300" rx="10" fill="url(#wood)" stroke="#3b2412" stroke-width="7"/>
+  <rect x="300" y="200" width="30" height="300" rx="10" fill="url(#wood)" stroke="#3b2412" stroke-width="7"/>
+  <!-- bottle cap drum -->
+  <path d="M10 210 L360 210 L340 360 L30 360 Z" fill="url(#cap)" stroke="#3b2412" stroke-width="8"/>
+  <g stroke="#7e2017" stroke-width="6" opacity=".6"><line x1="70" y1="215" x2="75" y2="355"/><line x1="130" y1="215" x2="132" y2="355"/><line x1="190" y1="215" x2="190" y2="355"/><line x1="250" y1="215" x2="248" y2="355"/><line x1="310" y1="215" x2="303" y2="355"/></g>
+  <ellipse cx="185" cy="210" rx="178" ry="26" fill="#f06a58" stroke="#3b2412" stroke-width="8"/>
+  <!-- hopper (half nutshell) -->
+  <path d="M60 30 C70 140 120 190 185 195 C250 190 300 140 310 30 Z" fill="#c7914f" stroke="#3b2412" stroke-width="8"/>
+  <path d="M90 50 C100 120 140 160 185 165" stroke="#e7b778" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <ellipse cx="185" cy="30" rx="128" ry="22" fill="#7a4e26" stroke="#3b2412" stroke-width="8"/>
+  <!-- big gear -->
+  <g transform="translate(380 170)">
+    <g fill="url(#metal)" stroke="#3b2412" stroke-width="6">
+      <circle r="70"/>
+      <rect x="-14" y="-96" width="28" height="34" rx="6"/><rect x="-14" y="62" width="28" height="34" rx="6"/>
+      <rect x="-96" y="-14" width="34" height="28" rx="6"/><rect x="62" y="-14" width="34" height="28" rx="6"/>
+      <rect x="-14" y="-96" width="28" height="34" rx="6" transform="rotate(45)"/><rect x="-14" y="62" width="28" height="34" rx="6" transform="rotate(45)"/>
+      <rect x="-96" y="-14" width="34" height="28" rx="6" transform="rotate(45)"/><rect x="62" y="-14" width="34" height="28" rx="6" transform="rotate(45)"/>
+    </g>
+    <circle r="22" fill="#5f6a72" stroke="#3b2412" stroke-width="6"/>
+  </g>
+  <!-- output chute -->
+  <path d="M120 350 L250 350 L220 430 L150 430 Z" fill="url(#metal)" stroke="#3b2412" stroke-width="7"/>
+</g>
+
+<!-- output crate + goo blobs -->
+<g transform="translate(1430 830)" filter="url(#shadow)">
+  <rect x="0" y="0" width="230" height="150" rx="12" fill="url(#wood)" stroke="#3b2412" stroke-width="8"/>
+  <rect x="-10" y="-14" width="250" height="32" rx="10" fill="#c98a49" stroke="#3b2412" stroke-width="8"/>
+  <use href="#blob" x="70" y="-30"/><use href="#blob" x="130" y="-40"/><use href="#blob" x="180" y="-26"/>
+</g>
+<use href="#blob" x="1520" y="770"/>
+
+<!-- automation loop arrows -->
+<g fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" opacity=".95">
+  <path d="M1230 300 C1300 230 1420 220 1500 260" />
+  <path d="M1720 640 C1790 720 1780 820 1700 880" />
+</g>
+<g fill="#ffffff" stroke="#3b2412" stroke-width="4">
+  <path d="M1500 240 L1540 270 L1494 290 Z"/>
+  <path d="M1716 896 L1676 900 L1700 862 Z"/>
+</g>
+
+<!-- near foreground grass framing -->
+<g>
+  <path d="M-60 1080 C-10 760 60 520 170 280 C130 560 120 820 130 1080Z" fill="url(#gNear)"/>
+  <path d="M110 1080 C140 880 190 740 270 620 C230 780 215 920 220 1080Z" fill="url(#gNear)"/>
+  <path d="M1860 1080 C1840 830 1800 640 1720 500 C1830 640 1910 830 1960 1080Z" fill="url(#gNear)"/>
+  <path d="M40 760 C70 620 110 480 170 280" stroke="#7dc155" stroke-width="7" fill="none" opacity=".6"/>
+</g>
+
+<!-- dust motes -->
+<g fill="#fffbe0"><circle cx="1180" cy="200" r="5" opacity=".8"/><circle cx="1690" cy="380" r="4" opacity=".7"/><circle cx="980" cy="330" r="3" opacity=".8"/><circle cx="1820" cy="230" r="5" opacity=".6"/></g>
+</svg>
+
+<div class="title">
+  <div class="t1">AUTO<br><span class="b">STATION</span></div>
+  <div class="sub">Your stations, fed from your chests.</div>
+</div>
+<div class="chips"><span class="chip">Grinder</span><span class="chip">Smelter</span><span class="chip">Kiln</span><span class="chip">Spinning Wheel</span></div>
+<div class="tag">GROUNDED 2 · UE4SS MOD</div>
+</div></body></html>

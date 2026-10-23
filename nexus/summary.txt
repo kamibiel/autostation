@@ -1,0 +1,1 @@
+Queue a recipe once and your grinder, smelter, kiln, spinning wheel and other stations keep running from nearby chests. Finished items go to the chest where you already store them. Uses the game's own crafting - nothing is spawned. UE4SS Lua mod.
