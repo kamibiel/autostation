@@ -66,8 +66,10 @@ local Config = {
     TickMs          = 3000,  -- how often tracked stations are checked
     ChestRadius     = 1500,  -- cm (15 m) around the station
     ActiveRadius    = 4000,  -- cm (40 m): only stations this close to you work
-    MaxFeedsPerTick = 3,
-    Verbose         = true,  -- log every move (beta)
+    MaxFeedsPerTick = 2,
+    StationsPerTick = 3,     -- stations handled per tick
+    IdleSeconds     = 30,    -- rest time when no ingredients are nearby
+    Verbose         = false, -- log every move
 }
 ```
 

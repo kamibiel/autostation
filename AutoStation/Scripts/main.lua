@@ -1,5 +1,5 @@
 --[[
-    AutoStation v1.0.0-beta - Grounded 2 (UE4SS Lua)
+    AutoStation v1.0.1-beta - Grounded 2 (UE4SS Lua)
     https://github.com/kamibiel/autostation
     -------------------------------------------------------------
     Keeps production stations (refinery/grinder, smelter, kiln, spinning
@@ -29,15 +29,17 @@
 -- CONFIG
 ------------------------------------------------------------------
 local Config = {
-    TickMs        = 3000,  -- how often tracked stations are checked
-    ChestRadius   = 1500,  -- cm (15 m) around the station
-    ActiveRadius  = 4000,  -- cm (40 m): only stations this close to you work
-    MaxFeedsPerTick = 3,   -- queue entries added per station per tick
-    Verbose       = true,  -- log every move (beta: on)
+    TickMs          = 3000,  -- how often tracked stations are checked
+    ChestRadius     = 1500,  -- cm (15 m) around the station
+    ActiveRadius    = 4000,  -- cm (40 m): only stations this close to you work
+    MaxFeedsPerTick = 2,     -- queue entries added per station per tick
+    StationsPerTick = 3,     -- stations handled per tick (round-robin)
+    IdleSeconds     = 30,    -- rest time for a station with no ingredients nearby
+    Verbose         = false, -- log every move
 }
 ------------------------------------------------------------------
 
-local VERSION = "1.0.0-beta"
+local VERSION = "1.0.1-beta"
 local TAG = "[AutoStation] "
 local function log(m) print(TAG .. m .. "\n") end
 local function vlog(m) if Config.Verbose then log(m) end end
@@ -51,6 +53,8 @@ local STATIONS = {
 -- tracked[stationFullName] = { station=obj, recipeTable=obj, recipeName=FName, label=string, busy=false }
 local Tracked = {}
 local Suppress = 0     -- >0 while our own calls run (hooks must ignore them)
+local Pending = nil    -- finished item in transit (backpack -> chest), done next tick
+local CheckLater = {}  -- stations queued by hand through the no-recipe variant
 
 ------------------------------------------------------------------
 -- helpers
@@ -149,7 +153,10 @@ local function track(st, recipeTable, recipeName, why)
     local key = nameOf(st)
     local label = try(function() return recipeName:ToString() end, "?")
     local cur = Tracked[key]
-    if cur and cur.label == label then return end
+    if cur and cur.label == label then
+        cur.sleepUntil, cur.idle = 0, false -- queued by hand again: wake it up
+        return
+    end
     Tracked[key] = { station = st, recipeTable = recipeTable, recipeName = recipeName, label = label }
     log(string.format("tracking %s -> %s (%s)", try(function() return st:GetClass():GetFName():ToString() end, "?"), label, why))
 end
@@ -167,6 +174,9 @@ end
 -- Move finished items to a chest that already holds them. Uses the game's
 -- own "take" (into the backpack) and then moves ONLY that amount.
 local function collect(pc, t, pos)
+    -- Step 1 of 2: take ONE finished item into the backpack. The move to the
+    -- chest happens on the next tick (no delayed callbacks).
+    if Pending then return end
     local st = t.station
     for _, p in ipairs(productionList(st)) do
         if try(function() return st:IsItemFinished(p.item) end, false) then
@@ -176,29 +186,29 @@ local function collect(pc, t, pos)
             Suppress = Suppress + 1
             local ok = pcall(function() pc:ServerTryGetProductionItem(st, p.item) end)
             Suppress = Suppress - 1
-            if not ok then return end
-            -- after the take lands in the backpack, move exactly what came out
-            ExecuteWithDelay(500, function()
-                ExecuteInGameThread(function()
-                    pcall(function()
-                        local inv = playerInv(pc)
-                        local gained = (backpackCounts(pc)[p.row] or 0) - before
-                        if gained <= 0 or not valid(dest.inv) then return end
-                        local moving
-                        forEachItem(inv, function(i) if not moving and rowOf(i) == p.row then moving = i end end)
-                        if not moving then return end
-                        local okT = pcall(function() inv:ServerTransferItemTo(moving, dest.inv, math.min(gained, stackOf(moving)), false) end)
-                        vlog(string.format("collected %s x%d -> chest (%s)", p.row, gained, okT and "ok" or "transfer failed"))
-                    end)
-                end)
-            end)
-            return -- one item per tick per station keeps things smooth
+            if ok then Pending = { row = p.row, before = before, dest = dest } end
+            return
         end
     end
 end
 
--- Top up the queue with the tracked recipe. Stops the station if the game
--- starts taking ingredients from the backpack (chests ran out).
+-- Step 2 of 2: move exactly what came out of the station into the chest.
+local function finishPending(pc)
+    local job = Pending
+    Pending = nil
+    if not job then return end
+    local inv = playerInv(pc)
+    local gained = (backpackCounts(pc)[job.row] or 0) - job.before
+    if gained <= 0 or not valid(job.dest.inv) then return end
+    local moving
+    forEachItem(inv, function(i) if not moving and rowOf(i) == job.row then moving = i end end)
+    if not moving then return end
+    local okT = pcall(function() inv:ServerTransferItemTo(moving, job.dest.inv, math.min(gained, stackOf(moving)), false) end)
+    vlog(string.format("stored %s x%d (%s)", job.row, gained, okT and "ok" or "transfer failed"))
+end
+
+-- Top up the queue with the tracked recipe. If the game takes anything from
+-- the backpack (chests ran out), the station is stopped.
 local function feed(pc, t, key)
     local st = t.station
     for _ = 1, Config.MaxFeedsPerTick do
@@ -212,34 +222,70 @@ local function feed(pc, t, key)
                 { RowName = FName("None") })
         end)
         Suppress = Suppress - 1
-        if not ok then return end
+        if not ok then t.sleepUntil = os.time() + Config.IdleSeconds return end
         if #productionList(st) <= qBefore then
-            vlog(t.label .. ": no ingredients nearby")
+            -- no ingredients nearby: rest this station for a while
+            if not t.idle then vlog(t.label .. ": waiting for ingredients") end
+            t.idle = true
+            t.sleepUntil = os.time() + Config.IdleSeconds
             return
         end
+        t.idle = false
         local bpAfter = backpackCounts(pc)
         for row, n in pairs(bpBefore) do
             if (bpAfter[row] or 0) < n then
-                untrack(key, "chest stock ran out - used backpack " .. row)
+                untrack(key, "chests ran out - would use backpack " .. row)
                 return
             end
         end
-        vlog(t.label .. ": queued one more")
     end
 end
 
+local Order, Cursor = {}, 0
 local function tick()
     local pc = localPC()
     if not valid(pc) then return end
+
+    -- finish last tick's move first; never feed while an item is in transit
+    if Pending then finishPending(pc) return end
+
+    -- stations queued by hand through the variant without a recipe argument
+    if #CheckLater > 0 then
+        local list = CheckLater
+        CheckLater = {}
+        for _, st in ipairs(list) do
+            if valid(st) then
+                local q = productionList(st)
+                local p = q[#q]
+                if p and p.recipeName then track(st, p.recipeTable, p.recipeName, "queued by hand") end
+            end
+        end
+    end
+
     local me = loc(pc.Pawn)
+    local now = os.time()
+
+    -- round-robin: only a few stations per tick
+    Order = {}
     for key, t in pairs(Tracked) do
-        if not valid(t.station) then
-            Tracked[key] = nil
-        else
+        if not valid(t.station) then Tracked[key] = nil else Order[#Order + 1] = key end
+    end
+    table.sort(Order)
+    local n = #Order
+    if n == 0 then return end
+    local done = 0
+    for _ = 1, n do
+        Cursor = Cursor % n + 1
+        local key = Order[Cursor]
+        local t = Tracked[key]
+        if t and (t.sleepUntil or 0) <= now then
             local pos = loc(t.station)
             if dist(me, pos) <= Config.ActiveRadius then
                 collect(pc, t, pos)
+                if Pending then return end -- item in transit: stop here this tick
                 feed(pc, t, key)
+                done = done + 1
+                if done >= Config.StationsPerTick then return end
             end
         end
     end
@@ -269,16 +315,7 @@ pcall(function()
         function(self, building)
             if Suppress > 0 then return end
             local st = try(function() return building:get() end)
-            if not valid(st) then return end
-            ExecuteWithDelay(500, function()
-                ExecuteInGameThread(function()
-                    pcall(function()
-                        local list = productionList(st)
-                        local p = list[#list]
-                        if p and p.recipeName then track(st, p.recipeTable, p.recipeName, "queued by hand") end
-                    end)
-                end)
-            end)
+            if valid(st) then CheckLater[#CheckLater + 1] = st end -- read on next tick
         end)
 end)
 
