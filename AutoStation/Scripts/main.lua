@@ -1,5 +1,5 @@
 --[[
-    AutoStation v1.0.1-beta - Grounded 2 (UE4SS Lua)
+    AutoStation v1.0.2-beta - Grounded 2 (UE4SS Lua)
     https://github.com/kamibiel/autostation
     -------------------------------------------------------------
     Keeps production stations (refinery/grinder, smelter, kiln, spinning
@@ -39,7 +39,7 @@ local Config = {
 }
 ------------------------------------------------------------------
 
-local VERSION = "1.0.1-beta"
+local VERSION = "1.0.2-beta"
 local TAG = "[AutoStation] "
 local function log(m) print(TAG .. m .. "\n") end
 local function vlog(m) if Config.Verbose then log(m) end end
@@ -207,12 +207,70 @@ local function finishPending(pc)
     vlog(string.format("stored %s x%d (%s)", job.row, gained, okT and "ok" or "transfer failed"))
 end
 
+-- Total of `row` in chests near `pos`.
+local function chestTotal(pos, row)
+    local total = 0
+    for _, c in ipairs(allChests()) do
+        if valid(c.st) and valid(c.inv) and dist(pos, c.pos) <= Config.ChestRadius then
+            forEachItem(c.inv, function(i) if rowOf(i) == row then total = total + stackOf(i) end end)
+        end
+    end
+    return total
+end
+
+-- Move `amount` of `row` from chests near `pos` into the backpack.
+-- Returns true when the full amount was moved.
+local function refundFromChests(pc, pos, row, amount)
+    local inv = playerInv(pc)
+    if not valid(inv) then return false end
+    local left = amount
+    local chests = {}
+    for _, c in ipairs(allChests()) do
+        if valid(c.st) and valid(c.inv) then
+            local d = dist(pos, c.pos)
+            if d <= Config.ChestRadius then chests[#chests + 1] = { c = c, d = d } end
+        end
+    end
+    table.sort(chests, function(a, b) return a.d < b.d end)
+    for _, e in ipairs(chests) do
+        local stacks = {}
+        forEachItem(e.c.inv, function(i) if rowOf(i) == row then stacks[#stacks + 1] = i end end)
+        for _, s in ipairs(stacks) do
+            if left <= 0 then break end
+            local n = math.min(left, stackOf(s))
+            if n > 0 and pcall(function() e.c.inv:ServerTransferItemTo(s, inv, n, false) end) then
+                left = left - n
+            end
+        end
+        if left <= 0 then break end
+    end
+    if left > 0 then
+        log(string.format("could only give back %d of %d %s to your backpack", amount - left, amount, row))
+    else
+        vlog(string.format("took %d %s from a chest instead of your backpack", amount, row))
+    end
+    return left <= 0
+end
+
 -- Top up the queue with the tracked recipe. If the game takes anything from
 -- the backpack (chests ran out), the station is stopped.
 local function feed(pc, t, key)
     local st = t.station
+    local pos = loc(st)
+    t.ingredients = t.ingredients or {}
     for _ = 1, Config.MaxFeedsPerTick do
         if try(function() return st:ProductionCapacityIsFull() end, true) then return end
+        -- Known ingredients (learned from earlier refills): if the chests no
+        -- longer hold a full batch, wait instead of letting the game dip into
+        -- the backpack.
+        for row, per in pairs(t.ingredients) do
+            if chestTotal(pos, row) < per then
+                if not t.idle then vlog(t.label .. ": chests are low on " .. row .. ", waiting") end
+                t.idle = true
+                t.sleepUntil = os.time() + Config.IdleSeconds
+                return
+            end
+        end
         local qBefore = #productionList(st)
         local bpBefore = backpackCounts(pc)
         Suppress = Suppress + 1
@@ -231,11 +289,18 @@ local function feed(pc, t, key)
             return
         end
         t.idle = false
+        -- The game spends backpack ingredients before chest ones. Give back
+        -- whatever it took from the backpack using the same ingredient from a
+        -- nearby chest, so in the end the chest pays and the backpack is unchanged.
         local bpAfter = backpackCounts(pc)
         for row, n in pairs(bpBefore) do
-            if (bpAfter[row] or 0) < n then
-                untrack(key, "chests ran out - would use backpack " .. row)
-                return
+            local used = n - (bpAfter[row] or 0)
+            if used > 0 then
+                t.ingredients[row] = math.max(t.ingredients[row] or 0, used)
+                if not refundFromChests(pc, pos, row, used) then
+                    untrack(key, "chests ran out of " .. row)
+                    return
+                end
             end
         end
     end

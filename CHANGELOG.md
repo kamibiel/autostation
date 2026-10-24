@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.2-beta — 2026-10-24
+- Fix: stations stopped after one refill when you carried the ingredient. The game spends
+  backpack items before chest items; AutoStation now gives the same amount back to your backpack
+  from a nearby chest, so the chest pays and your backpack is unchanged.
+- Learns how much each recipe uses and waits (instead of refilling) when nearby chests no longer
+  hold a full batch.
+
 ## 1.0.1-beta — 2026-10-23
 - Fix: crash/stutter risk — no more delayed callbacks; finished items move to the chest on the
   next tick instead.
