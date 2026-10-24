@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.3-beta — 2026-10-24
+- Finished items now go STRAIGHT into the chest (never through the backpack): the item is created
+  in the chest, checked, and only then removed from the station; any mismatch is undone and the
+  item stays in the station (retry after 60 s).
+- Finished items are stored even while a station is waiting for ingredients.
+- Built-in profiling: slow ticks (> 8 ms) and a 5-minute summary are written to the log.
+- First 3 stores per session are audited in the log (inventory totals before/after).
+
 ## 1.0.2-beta — 2026-10-24
 - Fix: stations stopped after one refill when you carried the ingredient. The game spends
   backpack items before chest items; AutoStation now gives the same amount back to your backpack

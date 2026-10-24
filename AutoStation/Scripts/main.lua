@@ -1,5 +1,5 @@
 --[[
-    AutoStation v1.0.2-beta - Grounded 2 (UE4SS Lua)
+    AutoStation v1.0.3-beta - Grounded 2 (UE4SS Lua)
     https://github.com/kamibiel/autostation
     -------------------------------------------------------------
     Keeps production stations (refinery/grinder, smelter, kiln, spinning
@@ -9,8 +9,9 @@
       * Queue a recipe on a station by hand once -> that station is tracked
         with that recipe.
       * Every few seconds, for tracked stations near you:
-          - finished items are moved to a nearby chest that ALREADY holds
-            that item (if none does, they stay in the station);
+          - finished items go STRAIGHT into a nearby chest that already holds
+            that item - never through your backpack (if no chest holds it,
+            they stay in the station);
           - the queue is topped up with the same recipe. The game itself
             takes the ingredients from nearby chests, exactly like crafting.
       * If a top-up ever takes ingredients from your BACKPACK, the station
@@ -35,11 +36,12 @@ local Config = {
     MaxFeedsPerTick = 2,     -- queue entries added per station per tick
     StationsPerTick = 3,     -- stations handled per tick (round-robin)
     IdleSeconds     = 30,    -- rest time for a station with no ingredients nearby
+    SlowTickMs      = 8,     -- log ticks slower than this (profiling)
     Verbose         = false, -- log every move
 }
 ------------------------------------------------------------------
 
-local VERSION = "1.0.2-beta"
+local VERSION = "1.0.3-beta"
 local TAG = "[AutoStation] "
 local function log(m) print(TAG .. m .. "\n") end
 local function vlog(m) if Config.Verbose then log(m) end end
@@ -53,7 +55,6 @@ local STATIONS = {
 -- tracked[stationFullName] = { station=obj, recipeTable=obj, recipeName=FName, label=string, busy=false }
 local Tracked = {}
 local Suppress = 0     -- >0 while our own calls run (hooks must ignore them)
-local Pending = nil    -- finished item in transit (backpack -> chest), done next tick
 local CheckLater = {}  -- stations queued by hand through the no-recipe variant
 
 ------------------------------------------------------------------
@@ -171,40 +172,87 @@ end
 ------------------------------------------------------------------
 -- work
 ------------------------------------------------------------------
--- Move finished items to a chest that already holds them. Uses the game's
--- own "take" (into the backpack) and then moves ONLY that amount.
+local function invCount(inv, row)
+    local n = 0
+    forEachItem(inv, function(i) if rowOf(i) == row then n = n + stackOf(i) end end)
+    return n
+end
+
+-- Audit (first few stores of a session): totals of every item in the
+-- backpack + chests near the station, before and after, to prove that a store
+-- neither duplicates nor loses anything.
+local AuditLeft = 3
+local function auditSnapshot(pc, pos)
+    local s = {}
+    local function add(inv) forEachItem(inv, function(i) local r = rowOf(i); s[r] = (s[r] or 0) + stackOf(i) end) end
+    add(playerInv(pc))
+    for _, c in ipairs(allChests()) do
+        if valid(c.st) and valid(c.inv) and dist(pos, c.pos) <= Config.ChestRadius then add(c.inv) end
+    end
+    return s
+end
+local function auditDiff(label, a, b)
+    local parts = {}
+    local keys = {}
+    for k in pairs(a) do keys[k] = true end
+    for k in pairs(b) do keys[k] = true end
+    for k in pairs(keys) do
+        local d = (b[k] or 0) - (a[k] or 0)
+        if d ~= 0 then parts[#parts + 1] = string.format("%s %+d", k, d) end
+    end
+    log("AUDIT " .. label .. ": " .. (#parts > 0 and table.concat(parts, ", ") or "no change"))
+end
+
+-- Store ONE finished item straight into a nearby chest that already holds it:
+-- create the same item/amount in the chest, check it landed, then remove the
+-- finished item from the station. Any mismatch is rolled back and the item
+-- stays in the station. Nothing passes through the backpack.
 local function collect(pc, t, pos)
-    -- Step 1 of 2: take ONE finished item into the backpack. The move to the
-    -- chest happens on the next tick (no delayed callbacks).
-    if Pending then return end
+    if (t.storeSleep or 0) > os.time() then return end
     local st = t.station
     for _, p in ipairs(productionList(st)) do
         if try(function() return st:IsItemFinished(p.item) end, false) then
             local dest = chestHolding(pos, p.row)
             if not dest then return end -- nowhere to put it: leave it in the station
-            local before = backpackCounts(pc)[p.row] or 0
+            local count = p.count
+            local handle = try(function() return p.item.ItemDataRowHandle end)
+            if not handle or count <= 0 then return end
+            local h = { DataTable = try(function() return handle.DataTable end), RowName = try(function() return handle.RowName end) }
+            local space = try(function() return dest.inv:GetMaxAllowedSpaceForItemHandle(h) end, 0)
+            if space < count then return end -- chest is full: leave it in the station
+
+            local audit = AuditLeft > 0 and auditSnapshot(pc, pos) or nil
+            local before = invCount(dest.inv, p.row)
             Suppress = Suppress + 1
-            local ok = pcall(function() pc:ServerTryGetProductionItem(st, p.item) end)
+            pcall(function() dest.inv:ServerCreateAndAddItem(h, count) end)
+            local added = invCount(dest.inv, p.row) - before
+            if added ~= count then
+                -- did not land exactly: undo whatever landed, keep it in the station
+                if added > 0 then pcall(function() dest.inv:ServerRemoveItemMatchingItemData(h, added) end) end
+                Suppress = Suppress - 1
+                log(string.format("could not store %s x%d (chest took %d) - left in the station, retry in 60 s", p.row, count, added))
+                t.storeSleep = os.time() + 60
+                return
+            end
+            pcall(function() pc:ServerDestroyProductionItem(st, p.item) end)
+            local still = false
+            for _, q in ipairs(productionList(st)) do if q.item == p.item then still = true end end
+            if still then
+                pcall(function() dest.inv:ServerRemoveItemMatchingItemData(h, count) end)
+                Suppress = Suppress - 1
+                log(string.format("could not remove %s from the station - undone, retry in 60 s", p.row))
+                t.storeSleep = os.time() + 60
+                return
+            end
             Suppress = Suppress - 1
-            if ok then Pending = { row = p.row, before = before, dest = dest } end
-            return
+            vlog(string.format("stored %s x%d in a chest", p.row, count))
+            if audit then
+                AuditLeft = AuditLeft - 1
+                auditDiff(string.format("store %s x%d (expected: only %s %+d)", p.row, count, p.row, count), audit, auditSnapshot(pc, pos))
+            end
+            return -- one item per station per tick keeps things smooth
         end
     end
-end
-
--- Step 2 of 2: move exactly what came out of the station into the chest.
-local function finishPending(pc)
-    local job = Pending
-    Pending = nil
-    if not job then return end
-    local inv = playerInv(pc)
-    local gained = (backpackCounts(pc)[job.row] or 0) - job.before
-    if gained <= 0 or not valid(job.dest.inv) then return end
-    local moving
-    forEachItem(inv, function(i) if not moving and rowOf(i) == job.row then moving = i end end)
-    if not moving then return end
-    local okT = pcall(function() inv:ServerTransferItemTo(moving, job.dest.inv, math.min(gained, stackOf(moving)), false) end)
-    vlog(string.format("stored %s x%d (%s)", job.row, gained, okT and "ok" or "transfer failed"))
 end
 
 -- Total of `row` in chests near `pos`.
@@ -307,12 +355,10 @@ local function feed(pc, t, key)
 end
 
 local Order, Cursor = {}, 0
+Prof = { collect = 0, feed = 0 }
 local function tick()
     local pc = localPC()
     if not valid(pc) then return end
-
-    -- finish last tick's move first; never feed while an item is in transit
-    if Pending then finishPending(pc) return end
 
     -- stations queued by hand through the variant without a recipe argument
     if #CheckLater > 0 then
@@ -343,12 +389,17 @@ local function tick()
         Cursor = Cursor % n + 1
         local key = Order[Cursor]
         local t = Tracked[key]
-        if t and (t.sleepUntil or 0) <= now then
+        if t then
             local pos = loc(t.station)
             if dist(me, pos) <= Config.ActiveRadius then
-                collect(pc, t, pos)
-                if Pending then return end -- item in transit: stop here this tick
-                feed(pc, t, key)
+                local c0 = os.clock()
+                collect(pc, t, pos)                       -- finished items: always
+                Prof.collect = Prof.collect + (os.clock() - c0)
+                if (t.sleepUntil or 0) <= now and Tracked[key] then
+                    local f0 = os.clock()
+                    feed(pc, t, key)                      -- refills: only when awake
+                    Prof.feed = Prof.feed + (os.clock() - f0)
+                end
                 done = done + 1
                 if done >= Config.StationsPerTick then return end
             end
@@ -441,10 +492,29 @@ RegisterKeyBind(Key.F11, { ModifierKey.CONTROL }, function()
     log(n .. " station(s) tracked")
 end)
 
+-- Profiling: every tick is timed. Slow ticks are logged right away, and a
+-- summary (average / worst) is logged every 5 minutes.
+local Stats = { n = 0, total = 0, worst = 0, slow = 0, since = os.time() }
 LoopAsync(Config.TickMs, function()
     ExecuteInGameThread(function()
+        Prof.collect, Prof.feed = 0, 0
+        local t0 = os.clock()
+        local cacheBefore = ChestCacheAt
         local ok, err = pcall(tick)
+        local ms = (os.clock() - t0) * 1000
         if not ok then log("tick error: " .. tostring(err)) end
+        Stats.n, Stats.total = Stats.n + 1, Stats.total + ms
+        if ms > Stats.worst then Stats.worst = ms end
+        if ms >= Config.SlowTickMs then
+            Stats.slow = Stats.slow + 1
+            log(string.format("PERF slow tick %.1f ms (store %.1f, refill %.1f, chest list refreshed: %s)",
+                ms, Prof.collect * 1000, Prof.feed * 1000, ChestCacheAt ~= cacheBefore and "yes" or "no"))
+        end
+        if os.time() - Stats.since >= 300 then
+            log(string.format("PERF last 5 min: %d ticks, avg %.1f ms, worst %.1f ms, %d slow",
+                Stats.n, Stats.total / math.max(1, Stats.n), Stats.worst, Stats.slow))
+            Stats = { n = 0, total = 0, worst = 0, slow = 0, since = os.time() }
+        end
     end)
     return false
 end)

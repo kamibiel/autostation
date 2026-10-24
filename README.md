@@ -15,7 +15,7 @@ chests and stores the results in the chest where you already keep them.
 - **Learns from you:** queue a recipe by hand once and that station is tracked with that recipe.
 - **Auto refill:** the queue is topped up with the same recipe. The game itself takes the
   ingredients from nearby chests, exactly like normal crafting — nothing is spawned.
-- **Auto store:** finished items go to a nearby chest that **already holds that item**.
+- **Auto store:** finished items go **straight** into a nearby chest that **already holds that item** (never through your backpack).
   If no chest holds it, they stay in the station.
 - **Backpack-safe:** if a refill ever takes ingredients from your backpack (chests ran out),
   that station stops.
@@ -52,8 +52,6 @@ chests and stores the results in the chest where you already keep them.
 
 - Works only while you are near the station (40 m by default): the game only uses chests close
   to the player for crafting.
-- Finished items pass through your backpack for a moment on their way to the chest. If your
-  backpack is full they stay in the station.
 - Tracking resets when the game restarts: queue once by hand again, or press `Ctrl+F5` at the station.
 - Host only in multiplayer.
 
