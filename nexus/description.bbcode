@@ -1,13 +1,13 @@
 [center][size=6][b]AutoStation[/b][/size]
 [size=4]Your stations, fed from your chests.[/size]
-[size=3][color=#ffcc00]BETA - back up your save before using it.[/color][/size][/center]
+[size=3][color=#ffcc00]BETA 1.0.3 - back up your save before using it.[/color][/size][/center]
 
 [size=4][b]What it does[/b][/size]
 Queue a recipe by hand [b]once[/b] on a grinder/refinery, smelter, kiln, spinning wheel (and more). AutoStation then:
 [list]
 [*][b]Refills the queue[/b] with the same recipe. The game itself takes the ingredients from nearby chests, exactly like normal crafting - nothing is spawned.
-[*][b]Stores finished items[/b] in a nearby chest that already holds that item. If no chest holds it, they stay in the station.
-[*][b]Protects your backpack[/b]: if a refill would take ingredients from your backpack (chests ran out), that station stops.
+[*][b]Stores finished items straight into a chest[/b] that already holds that item - never through your backpack. If no chest holds it (or it is full), they stay in the station.
+[*][b]Protects your backpack[/b]: the game spends backpack ingredients first, so AutoStation gives the same amount back from a nearby chest - the chest pays, your backpack stays the same. When the chests run low, the station waits.
 [*][b]Stops when you want[/b]: cancel an item from the station's queue by hand, or press [b]Ctrl+F5[/b].
 [/list]
 Supported: Refinery/Grinder, Smelter, Kiln, Spinning Wheel, Cooking Station, Glue Factory, Paint Mixer, Drying Rack, Grill, Mash Bowl.
@@ -35,7 +35,6 @@ Stand at a station with chests nearby and queue a recipe by hand. Keep playing n
 [size=4][b]Limitations (beta)[/b][/size]
 [list]
 [*]Works only while you are near the station (40 m by default) - the game only uses chests close to the player for crafting.
-[*]Finished items pass through your backpack for a moment on their way to the chest. If your backpack is full they stay in the station.
 [*]Tracking resets when the game restarts: queue once by hand again, or press Ctrl+F5 at the station.
 [*]Multiplayer: host only.
 [/list]
@@ -53,4 +52,4 @@ Top of [i]AutoStation\Scripts\main.lua[/i]: check interval, chest radius (15 m),
 
 [line]
 [size=4][b]Português (BR)[/b][/size]
-Coloque uma receita [b]uma vez[/b] à mão no moedor, fornalha, forno, roda de fiar etc. O AutoStation repõe a fila com os ingredientes dos baús próximos e guarda o resultado no baú onde você já guarda aquele item. Se faltar no baú, a estação para (sua mochila não é usada). Funciona com você por perto. [b]Faça backup do save antes.[/b]
+Coloque uma receita [b]uma vez[/b] à mão no moedor, fornalha, forno, roda de fiar etc. O AutoStation repõe a fila com os ingredientes dos baús próximos e guarda o resultado no baú onde você já guarda aquele item. O resultado vai direto para o baú, sem passar pela mochila. Se faltar no baú, a estação espera (sua mochila não é usada). Funciona com você por perto. [b]Faça backup do save antes.[/b]
