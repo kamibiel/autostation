@@ -19,6 +19,8 @@ chests and stores the results in the chest where you already keep them.
   If no chest holds it, they stay in the station.
 - **Backpack-safe:** if a refill ever takes ingredients from your backpack (chests ran out),
   that station stops.
+- **Keeps a reserve:** stops refilling before an ingredient drops below 10 in the chests
+  (configurable, per item too), so you always have some left for building and crafting.
 - **Stops when you want:** cancel an item from the station's queue by hand, or press `Ctrl+F5`.
 - Works with the Refinery/Grinder, Smelter, Kiln, Spinning Wheel, Cooking Station, Glue Factory,
   Paint Mixer, Drying Rack, Grill and Mash Bowl.
@@ -68,6 +70,8 @@ local Config = {
     StationsPerTick = 3,     -- stations handled per tick
     IdleSeconds     = 30,    -- rest time when no ingredients are nearby
     Verbose         = false, -- log every move
+    Reserve         = 10,    -- keep at least this many of each ingredient in the chests
+    ReserveByItem   = {},    -- e.g. { ["MushroomChunk"] = 50, ["FiberRaw"] = 0 }
 }
 ```
 
@@ -93,6 +97,8 @@ Mantém as suas estações de produção funcionando com o que está nos baús. 
 os ingredientes dos baús próximos e guarda o resultado no baú onde você já guarda aquele item
 (se nenhum baú tiver, fica na estação).
 
+- Mantém uma reserva: para de repor antes de um ingrediente ficar abaixo de 10 nos baús
+  (configurável em `Reserve` / `ReserveByItem`), e volta sozinha quando você reabastece.
 - Se faltar no baú e o jogo tentar usar a sua mochila, a estação para.
 - Cancelar um item da fila à mão (ou `Ctrl+F5`) para a estação.
 - Funciona com você por perto (40 m). Só o anfitrião no multiplayer.

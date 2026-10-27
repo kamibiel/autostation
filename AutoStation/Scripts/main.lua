@@ -1,5 +1,5 @@
 --[[
-    AutoStation v1.0.3-beta - Grounded 2 (UE4SS Lua)
+    AutoStation v1.0.4-beta - Grounded 2 (UE4SS Lua)
     https://github.com/kamibiel/autostation
     -------------------------------------------------------------
     Keeps production stations (refinery/grinder, smelter, kiln, spinning
@@ -37,11 +37,19 @@ local Config = {
     StationsPerTick = 3,     -- stations handled per tick (round-robin)
     IdleSeconds     = 30,    -- rest time for a station with no ingredients nearby
     SlowTickMs      = 8,     -- log ticks slower than this (profiling)
+
+    -- Ingredient reserve: a station stops refilling when that would leave
+    -- fewer than this many of an ingredient in the nearby chests, so you keep
+    -- some for building/crafting. 0 = use everything.
+    Reserve         = 10,
+    -- Per-item reserve (overrides Reserve). Item names are the ones shown in
+    -- the log, e.g. ["MushroomChunk"] = 50, ["FiberRaw"] = 0.
+    ReserveByItem   = {},
     Verbose         = false, -- log every move
 }
 ------------------------------------------------------------------
 
-local VERSION = "1.0.3-beta"
+local VERSION = "1.0.4-beta"
 local TAG = "[AutoStation] "
 local function log(m) print(TAG .. m .. "\n") end
 local function vlog(m) if Config.Verbose then log(m) end end
@@ -255,6 +263,24 @@ local function collect(pc, t, pos)
     end
 end
 
+-- Totals of every item in chests near `pos` (one pass).
+local function nearbyCounts(pos)
+    local t = {}
+    for _, c in ipairs(allChests()) do
+        if valid(c.st) and valid(c.inv) and dist(pos, c.pos) <= Config.ChestRadius then
+            forEachItem(c.inv, function(i) local r = rowOf(i); t[r] = (t[r] or 0) + stackOf(i) end)
+        end
+    end
+    return t
+end
+
+-- How many of `row` must always stay in the chests.
+local function reserveFor(row)
+    local v = Config.ReserveByItem and Config.ReserveByItem[row]
+    if v ~= nil then return v end
+    return Config.Reserve or 0
+end
+
 -- Total of `row` in chests near `pos`.
 local function chestTotal(pos, row)
     local total = 0
@@ -308,16 +334,26 @@ local function feed(pc, t, key)
     t.ingredients = t.ingredients or {}
     for _ = 1, Config.MaxFeedsPerTick do
         if try(function() return st:ProductionCapacityIsFull() end, true) then return end
-        -- Known ingredients (learned from earlier refills): if the chests no
-        -- longer hold a full batch, wait instead of letting the game dip into
-        -- the backpack.
+        -- Known ingredients (learned from earlier refills): refill only if the
+        -- chests still hold a full batch PLUS the reserve the player wants to
+        -- keep for building/crafting. Otherwise wait.
+        local stock = nearbyCounts(pos)
         for row, per in pairs(t.ingredients) do
-            if chestTotal(pos, row) < per then
-                if not t.idle then vlog(t.label .. ": chests are low on " .. row .. ", waiting") end
+            local keep = reserveFor(row)
+            if (stock[row] or 0) - per < keep then
+                if t.waitingFor ~= row then
+                    log(string.format("%s: paused - keeping %d %s in the chests (%d left, one batch uses %d)",
+                        t.label, keep, row, stock[row] or 0, per))
+                    t.waitingFor = row
+                end
                 t.idle = true
                 t.sleepUntil = os.time() + Config.IdleSeconds
                 return
             end
+        end
+        if t.waitingFor then
+            log(t.label .. ": resumed - enough " .. t.waitingFor .. " in the chests again")
+            t.waitingFor = nil
         end
         local qBefore = #productionList(st)
         local bpBefore = backpackCounts(pc)
@@ -337,14 +373,31 @@ local function feed(pc, t, key)
             return
         end
         t.idle = false
+        -- Learn what one batch uses: whatever left the chests plus whatever
+        -- left the backpack (measured before any refund moves things around).
+        local stockAfter = nearbyCounts(pos)
+        local bpAfter = backpackCounts(pc)
+        local usedNow = {}
+        for row, n in pairs(stock) do
+            local d = n - (stockAfter[row] or 0)
+            if d > 0 then usedNow[row] = (usedNow[row] or 0) + d end
+        end
+        for row, n in pairs(bpBefore) do
+            local d = n - (bpAfter[row] or 0)
+            if d > 0 then usedNow[row] = (usedNow[row] or 0) + d end
+        end
+        for row, n in pairs(usedNow) do
+            if (t.ingredients[row] or 0) < n then
+                t.ingredients[row] = n
+                vlog(string.format("%s: one batch uses %d %s", t.label, n, row))
+            end
+        end
         -- The game spends backpack ingredients before chest ones. Give back
         -- whatever it took from the backpack using the same ingredient from a
         -- nearby chest, so in the end the chest pays and the backpack is unchanged.
-        local bpAfter = backpackCounts(pc)
         for row, n in pairs(bpBefore) do
             local used = n - (bpAfter[row] or 0)
             if used > 0 then
-                t.ingredients[row] = math.max(t.ingredients[row] or 0, used)
                 if not refundFromChests(pc, pos, row, used) then
                     untrack(key, "chests ran out of " .. row)
                     return

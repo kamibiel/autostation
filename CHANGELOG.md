@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.4-beta — 2026-10-27
+- New: ingredient reserve. A station stops refilling when that would leave fewer than
+  `Reserve` (default 10) of an ingredient in the nearby chests, so you keep some on hand for
+  building and crafting. It resumes by itself when the chests are restocked.
+  Per-item values with `ReserveByItem`; `Reserve = 0` uses everything (old behaviour).
+- AutoStation now learns each recipe's ingredients from what leaves the chests too (not only the
+  backpack), so the reserve works from the very first refills.
+- The log says when and why a station pauses and resumes.
+
 ## 1.0.3-beta — 2026-10-24
 - Finished items now go STRAIGHT into the chest (never through the backpack): the item is created
   in the chest, checked, and only then removed from the station; any mismatch is undone and the
